@@ -9,6 +9,8 @@ services:
     volumes:
       - ollama_data:/root/.ollama
       - /volume2/docker/hackathon_ynov/ollama_server:/config
+    environment:
+      - OLLAMA_ORIGINS="*"
     restart: always
 
   web-ui:
