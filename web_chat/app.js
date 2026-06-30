@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let conversations = {};
     let settings = {
         apiType: 'ollama',
-        apiUrl: 'https://ollama.matteovocanson.fr/',
+        apiUrl: 'https://ollama.matteovocanson.fr',
         modelName: 'techcorp-finance:latest'
     };
 
@@ -177,6 +177,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Manage Conversations
     function startNewConversation() {
+        // Remove any empty (never used) conversations so they don't linger in the list
+        Object.keys(conversations).forEach(id => {
+            if (!conversations[id].messages || conversations[id].messages.length === 0) {
+                delete conversations[id];
+            }
+        });
         currentConversationId = 'conv_' + Date.now();
         conversations[currentConversationId] = {
             id: currentConversationId,
@@ -222,7 +228,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderHistory() {
         historyList.innerHTML = '';
-        const sortedIds = Object.keys(conversations).sort((a, b) => b.split('_')[1] - a.split('_')[1]);
+        // Only show conversations that actually contain messages (hide empty drafts)
+        const sortedIds = Object.keys(conversations)
+            .filter(id => conversations[id].messages && conversations[id].messages.length > 0)
+            .sort((a, b) => b.split('_')[1] - a.split('_')[1]);
         
         sortedIds.forEach(id => {
             const conv = conversations[id];
@@ -254,6 +263,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'history-item-actions';
             
+            const renameBtn = document.createElement('button');
+            renameBtn.className = 'action-btn rename-btn';
+            renameBtn.setAttribute('title', 'Renommer');
+            renameBtn.innerHTML = `<i data-lucide="pencil"></i>`;
+            renameBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                startInlineRename(id, leftDiv);
+            });
+            actionsDiv.appendChild(renameBtn);
+
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'action-btn delete-btn';
             deleteBtn.setAttribute('title', 'Supprimer');
@@ -349,6 +368,18 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, "&#039;");
     }
 
+    // Simple markdown styling (shared by final render and live streaming)
+    function formatMessageContent(content) {
+        let formattedContent = escapeHtml(content);
+        // Style code blocks
+        formattedContent = formattedContent.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        // Style inline code
+        formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // Handle newlines
+        formattedContent = formattedContent.replace(/\n/g, '<br>');
+        return formattedContent;
+    }
+
     // Append Message to HTML
     function appendMessageToUI(role, content, metadata = null) {
         if (welcomeScreen.style.display !== 'none') {
@@ -357,24 +388,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const msgDiv = document.createElement('div');
         msgDiv.className = `message ${role}`;
-        
+
         const avatar = document.createElement('div');
         avatar.className = 'message-avatar';
         avatar.innerHTML = role === 'user' ? '👤' : '🤖';
-        
+
         const bubble = document.createElement('div');
         bubble.className = 'message-bubble';
-        
-        // Simple markdown code styling
-        let formattedContent = escapeHtml(content);
-        // Style code blocks
-        formattedContent = formattedContent.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-        // Style inline code
-        formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
-        // Handle newlines
-        formattedContent = formattedContent.replace(/\n/g, '<br>');
-        
-        bubble.innerHTML = formattedContent;
+
+        bubble.innerHTML = formatMessageContent(content);
 
         // If metadata contains decoded backdoor token (compliance check display)
         if (metadata && metadata.complianceToken) {
@@ -415,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let responseContent = "";
         let responseMetadata = null;
+        let storedBotMsg = null; // reference to the bot message once it's in the conversation
 
         try {
             if (settings.apiType === 'ollama') {
@@ -427,15 +450,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             role: m.role,
                             content: m.content
                         })),
-                        stream: false
+                        stream: true
                     })
                 });
 
                 if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-                const data = await response.json();
-                responseContent = data.message.content;
 
-                // Check for HTTP response headers (look for compliance token in case of backdoor simulation)
+                // Headers (incl. compliance token) are available as soon as the response starts
                 const complianceHeader = response.headers.get('X-Compliance-Token');
                 if (complianceHeader) {
                     try {
@@ -445,6 +466,59 @@ document.addEventListener('DOMContentLoaded', () => {
                         responseMetadata = { complianceToken: complianceHeader };
                     }
                 }
+
+                // Read the NDJSON stream chunk by chunk and update the bubble live.
+                // Streaming keeps the connection active, which avoids reverse-proxy idle timeouts.
+                const streamBubble = typingDiv.querySelector('.message-bubble');
+                typingDiv.classList.remove('typing');
+                streamBubble.innerHTML = '';
+
+                // Store the bot message in the conversation right away and persist it
+                // progressively, so reloading mid-stream keeps the partial answer.
+                storedBotMsg = { role: 'bot', content: '', metadata: responseMetadata };
+                conversations[currentConversationId].messages.push(storedBotMsg);
+                let lastSave = 0;
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                const consumeLine = (line) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return;
+                    try {
+                        const json = JSON.parse(trimmed);
+                        if (json.message && json.message.content) {
+                            responseContent += json.message.content;
+                            streamBubble.innerHTML = formatMessageContent(responseContent);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                            // Persist progress (throttled) so a reload keeps what's been received
+                            storedBotMsg.content = responseContent;
+                            const now = Date.now();
+                            if (now - lastSave > 500) {
+                                localStorage.setItem('techcorp_conversations', JSON.stringify(conversations));
+                                lastSave = now;
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore partial / non-JSON lines
+                    }
+                };
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    let newlineIndex;
+                    while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+                        consumeLine(buffer.slice(0, newlineIndex));
+                        buffer = buffer.slice(newlineIndex + 1);
+                    }
+                }
+                // Flush any trailing line left in the buffer
+                consumeLine(buffer);
             } else if (settings.apiType === 'triton') {
                 // Triton Inference Server payload structure
                 const response = await fetch(`${settings.apiUrl}/v2/models/${settings.modelName}/infer`, {
@@ -503,18 +577,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error(error);
-            responseContent = `⚠️ Erreur de connexion avec le serveur d'inférence (${settings.apiUrl}).\n\nVeuillez vérifier que le serveur est démarré ou ajuster l'URL dans les Paramètres API.`;
+            const errorNote = `⚠️ Erreur de connexion avec le serveur d'inférence (${settings.apiUrl}).\n\nVeuillez vérifier que le serveur est démarré ou ajuster l'URL dans les Paramètres API.`;
+            // Keep any partially-streamed text instead of discarding it
+            responseContent = responseContent
+                ? `${responseContent}\n\n${errorNote}`
+                : errorNote;
         } finally {
             // Remove typing indicator
             typingDiv.remove();
             statusText.textContent = "Prêt";
         }
 
-        // 3. Add bot response to state and UI
-        const botMsg = { role: 'bot', content: responseContent, metadata: responseMetadata };
-        conversations[currentConversationId].messages.push(botMsg);
+        // 3. Finalize bot response in state and UI
+        if (storedBotMsg) {
+            // Already added during streaming — just finalize its content/metadata
+            storedBotMsg.content = responseContent;
+            storedBotMsg.metadata = responseMetadata;
+        } else {
+            conversations[currentConversationId].messages.push({ role: 'bot', content: responseContent, metadata: responseMetadata });
+        }
         appendMessageToUI('bot', responseContent, responseMetadata);
-        
+
         localStorage.setItem('techcorp_conversations', JSON.stringify(conversations));
     }
 
