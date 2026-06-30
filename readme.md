@@ -85,17 +85,18 @@
 ### 📊 **DATA** - L'Expert Données
 
 **Mission Production :**
-- Validation des données d'entrée pour Phi-3.5-Financial
-- Tests de qualité des conversations
+- [x] Validation des données d'entrée pour Phi-3.5-Financial
+- [x] Tests de qualité des conversations
 
 **Mission Expérimentale :**
-- Analyse et nettoyage du dataset médical
-- Préparation des données pour le fine-tuning LoRA
-- Validation de la qualité des conversations médicales
+- [x] Analyse et nettoyage du dataset médical
+- [x] Préparation des données pour le fine-tuning LoRA
+- [x] Validation de la qualité des conversations médicales
 
 **Livrables :**
-- Dataset médical préparé et nettoyé
-- Rapport de qualité des données
+- [x] Dataset médical préparé et nettoyé (`rendu/data/medical_dataset_clean.json`)
+- [x] Rapport de qualité des données (`rendu/data/rapport_qualite_donnees.md`)
+- [x] Script de nettoyage de données (`scripts/data_cleaner.py`)
 
 ---
 
