@@ -1,179 +1,170 @@
-# 🤖 PROJET TECHCORP - Challenge IA 7h 🤖
+# TechCorp Financial AI — Chat & Livrables (Hackathon Ynov M1)
 
-## 📋 BRIEFING DE MISSION
+Interface de chat web pour dialoguer en temps réel avec le modèle **Phi-3.5-Financial**, servi par **Ollama**, accompagnée des livrables des filières **IA**, **DATA** et **CYBER**.
 
-**Contexte :** Vous êtes la nouvelle équipe technique de TechCorp Industries. L'équipe précédente a été licenciée suite à des soupçons de compromission du code et des données. Vous devez reprendre leur travail, valider l'intégrité du projet et finaliser le déploiement.
-
-## 🎯 OBJECTIFS PRINCIPAUX
-
-### 🚀 **Mission Critique - Production Ready**
-**Déployer le modèle Phi-3.5-Financial avec une interface chat :**
-- Serveur d'inférence opérationnel avec Phi-3.5-Financial — **au choix de votre équipe** :
-  - **Ollama** (solution clé en main recommandée)
-  - **Triton Inference Server** (solution avancée, configuration fournie)
-  - **Serveur maison** (FastAPI, Flask, vLLM… tout ce qui expose une API)
-- **Interface web obligatoire** pour interagir avec le modèle en temps réel, quelle que soit la solution choisie
-- Documentation technique de votre déploiement
-
-### 🔬 **Mission Expérimentale - R&D**
-**Fine-tuner un modèle médical expérimental (pas pour production) :**
-- Fine-tuning LoRA d'un modèle de base avec dataset médical fourni
-- Tests et validation des performances conversationnelles
-- *Note : Ce modèle reste expérimental, pas besoin de le déployer en production*
-
-## 📦 CE QUE VOUS AVEZ À DISPOSITION
-
-### 🏗️ Infrastructure Technique
-- **Ollama** — serveur d'inférence local, solution la plus simple ([ollama.com/download](https://ollama.com/download))
-- **Triton Inference Server** — déploiement avancé, configuration fournie dans `tritton_server/`
-- **Serveur maison** — vous pouvez monter votre propre API (FastAPI, vLLM, llama.cpp…)
-- **Modèle Phi-3.5-Financial** (Entraîné pour la finance/business, prêt à l'emploi voir dans `models/phi3_financial/`)
-- **Dataset médical** pour fine-tuning expérimental
-- **Accès Google Colab Pro** pour le fine-tuning et les tests
-- **Interface web** : obligatoire dans tous les cas pour interagir avec le modèle
-
-### 📁 Fichiers Hérités de l'Équipe Précédente
-- Code d'entraînement et de fine-tuning LoRA pour le modèle financier
-- Modèle Phi-3.5-Financial pré-entraîné
-- Code pour un chatbot de base
-- Quelques configurations de serveurs d'inférence (Ollama, Triton, etc.)
-- Dataset de conversations médicales (format JSON)
-- Documentation technique partielle
-- *Quelques fichiers de logs et notes personnelles laissés sur les machines*
-
-### 💡 **Pistes Techniques Suggérées**
-- **Quantization** : Envisagez des modèles quantisés (4-bit/8-bit) pour optimiser les performances
-- **Backend Python** : Triton supporte un backend Python plus simple que TensorRT
-- **Modèles légers** : Une liste de modèles alternatifs légers est disponible en annexe
+> **Contexte (scénario du hackathon).** On reprend le projet d'une équipe précédente soupçonnée d'avoir compromis le code et les données. La mission est double : (1) rendre le modèle financier accessible via une interface chat professionnelle, (2) auditer l'intégrité du projet.
+>
+> ⚠️ **Résultat clé de l'audit : le projet hérité est volontairement compromis** (backdoor dans le dataset d'entraînement + canal d'exfiltration `X-Compliance-Token` dans l'interface). Le modèle `techcorp-finance:latest` est jugé **NON déployable en l'état**. Voir [`rendu/cyber/rapport_audit.md`](rendu/cyber/rapport_audit.md).
 
 ---
 
-## 👥 RÉPARTITION DES RÔLES PAR FILIÈRE
+## 1. Où est-ce hébergé ?
 
-### 🏗️ **INFRA** - L'Architecte du Système
+| Composant | Emplacement | Détails |
+|-----------|-------------|---------|
+| **Serveur d'inférence (Ollama)** | `https://ollama.matteovocanson.fr` | Public, derrière un reverse proxy. Modèles exposés : `techcorp-finance:latest` et `phi3.5:latest`. |
+| **Interface web** | Conteneur Docker `techcorp-web-ui` | Servie par `http-server` sur le **port hôte 11400** (→ 8080 dans le conteneur). |
+| **Hébergement** | NAS Synology | Déploiement via `docker-compose.yml` (chemins `/volume2/docker/hackathon_ynov/...`). |
 
-**Votre Mission :**
-- Choisir et déployer un serveur d'inférence avec le modèle Phi-3.5-Financial :
-  - **Ollama** 
-  - **Triton Inference Server** 
-  - **Serveur maison**
-- Rendre le serveur accessible à l'équipe DEV WEB (URL + port)
-- Optimiser les performances (paramètres d'inférence, quantization)
+L'interface pointe **par défaut** sur le serveur public (`https://ollama.matteovocanson.fr`, modèle `techcorp-finance:latest`) — aucune config nécessaire pour tester.
 
-**Livrables :**
-- Serveur d'inférence opérationnel avec Phi-3.5-Financial
-- Documentation de déploiement (choix technique justifié)
+> **Note réseau.** Le reverse proxy devant Ollama peut couper les requêtes longues. L'interface utilise le **streaming** pour garder la connexion active. Si un timeout *total* persiste, augmenter `proxy_read_timeout` côté proxy.
 
 ---
 
-### 🤖 **IA** - Le Spécialiste Modèles
+## 2. Comment lancer le projet
 
-**Mission Production :**
-- Validation et tests du modèle Phi-3.5-Financial
-- Optimisation des paramètres d'inférence
+### Option A — Tester l'interface seule (le plus simple)
 
-**Mission Expérimentale :**
-- Fine-tuning LoRA d'un modèle médical avec le dataset fourni
-- Tests de performance du modèle expérimental
+L'interface est en HTML/CSS/JS pur, sans build. Elle se connecte par défaut au serveur Ollama public.
 
-**Livrables :**
-- Modèle Phi-3.5-Financial validé et optimisé
-- Modèle médical expérimental fine-tuné (LoRA)
+```bash
+# Ouvrir directement le fichier dans un navigateur
+web_chat/index.html
 
----
-
-### 📊 **DATA** - L'Expert Données
-
-**Mission Production :**
-- [x] Validation des données d'entrée pour Phi-3.5-Financial
-- [x] Tests de qualité des conversations
-
-**Mission Expérimentale :**
-- [x] Analyse et nettoyage du dataset médical
-- [x] Préparation des données pour le fine-tuning LoRA
-- [x] Validation de la qualité des conversations médicales
-
-**Livrables :**
-- [x] Dataset médical préparé et nettoyé (`rendu/data/medical_dataset_clean.json`)
-- [x] Rapport de qualité des données (`rendu/data/rapport_qualite_donnees.md`)
-- [x] Script de nettoyage de données (`scripts/data_cleaner.py`)
-
----
-
-### 🔒 **CYBER** - Le Responsable Sécurité
-
-**Mission Production :**
-- Audit de sécurité du déploiement (Ollama, Triton, ou serveur maison selon le choix de l'équipe INFRA)
-- Tests de robustesse du modèle Phi-3.5-Financial
-- Validation de l'intégrité des réponses
-
-**Mission Expérimentale :**
-- Tests de sécurité du modèle médical fine-tuné
-- Vérification de l'absence de biais problématiques
-
-**Livrables :**
-- Tests de robustesse validés
-
----
-
-### 🌐 **DEV WEB** - Le Développeur Interface
-
-**Mission Production :**
-- Développer une interface web de chat (obligatoire)
-- Intégrer l'API du serveur d'inférence choisi par l'équipe INFRA pour communiquer avec Phi-3.5-Financial
-  - Ollama : `http://localhost:11434`
-  - Triton : `http://localhost:8000`
-  - Serveur maison : URL communiquée par l'équipe INFRA
-- Interface utilisateur intuitive pour tester le modèle
-
-**Livrables :**
-- Interface web complète et fonctionnelle
-- Intégration API temps réel avec le serveur d'inférence de l'équipe
-
----
-
-
-## 🛠️ RESSOURCES TECHNIQUES FOURNIES
-
-### 📦 **Datasets**
-- **Dataset financier (v0 brut)** : [Dipl0/financial_dataset.json](https://huggingface.co/datasets/Dipl0/financial_dataset.json) — à télécharger manuellement dans `datasets/`
-- **Dataset médical** : [ruslanmv/ai-medical-chatbot](https://huggingface.co/datasets/ruslanmv/ai-medical-chatbot)
-
-### 📁 **Architecture du Projet**
-```
-techcorp-ai-chat/
-├── tritton_server/              # Configuration Triton Inference Server
-├── models/         # Modèle Phi-3.5-Financial
-├── medical_dataset/            # Dataset pour fine-tuning médical expérimental
-├── scripts/                    # Scripts d'entraînement et de tests
-
-
+# …ou la servir localement (recommandé pour éviter les soucis CORS/fichier)
+cd web_chat
+npx --yes http-server -a 0.0.0.0 -p 8080
+# puis http://localhost:8080
 ```
 
-### 🧠 **Modèles IA Disponibles**
-1. **Phi-3.5-Financial** - Modèle spécialisé finance/business
+### Option B — Stack complète via Docker (Ollama + Web UI)
 
-### 💻 **Infrastructure**
-- **Ollama** : serveur d'inférence local, GPU ou CPU 
-- **Triton Inference Server** : déploiement avancé, configuration fournie
-- **Serveur maison** : FastAPI, vLLM, llama.cpp… tout ce qui expose une API REST
-- **Google Colab Pro** : GPU pour fine-tuning et tests
+```bash
+docker compose up -d
+```
 
-### 🔧 **Pistes Techniques**
+- Interface web : `http://localhost:11400`
+- API Ollama : `http://localhost:11434`
 
-**Modèles Alternatifs si besoin :**
-- `phi3.5`, `qwen2.5:3b`, `mistral`, `tinyllama`
+Premier démarrage d'Ollama, créer le modèle financier à partir du `Modelfile` :
 
-## 📝 **DOCUMENTATION ET GUIDES**
-### 📚 **Ressource utile : [Déploiement rapide de modèles HuggingFace avec Triton Inference Server](https://github.com/triton-inference-server/tutorials/tree/main/Quick_Deploy/HuggingFaceTransformers)**
-### 📖 **Dataset Médical : [Dataset Hugging Face pour POC](https://huggingface.co/datasets/ruslanmv/ai-medical-chatbot)**
+```bash
+# Récupérer le modèle de base puis construire le modèle TechCorp
+docker exec -it techcorp-ollama ollama pull phi3.5
+docker exec -it techcorp-ollama ollama create techcorp-finance -f /config/Modelfile
+```
+
+### Option C — Serveur d'inférence Triton (alternative avancée)
+
+Configuration fournie dans `tritton_server/` et `model_repository/` (backend Python, modèle `microsoft/Phi-3.5-mini-instruct`). Construire l'image puis lancer Triton en montant `model_repository/` ; l'API REST est exposée sur le port `8000`.
+
+### Configurer la cible depuis l'interface
+
+Dans l'interface, bouton **Paramètres API** :
+
+| Type d'API | URL par défaut | Modèle |
+|------------|----------------|--------|
+| **Ollama** | `https://ollama.matteovocanson.fr` | `techcorp-finance:latest` |
+| **Triton** | `http://localhost:8000` | `phi35_financial` |
+| **Serveur maison** | URL custom | endpoint POST `{prompt, model}` |
+
 ---
 
-## 🎯 MISSION FINALE
+## 3. Comment ça fonctionne
 
-**Votre objectif principal : Rendre le modèle Phi-3.5-Financial accessible via une interface chat professionnelle — peu importe le serveur d'inférence choisi (Ollama, Triton, ou maison), l'interface est non négociable. Et n'oubliez pas d'expérimenter sur le fine tuning du modèle médical important aussi**
+```
+Navigateur (web_chat) ──HTTP──▶ Serveur d'inférence ──▶ Modèle Phi-3.5-Financial
+   │  streaming NDJSON               (Ollama / Triton / maison)
+   └─ historique en localStorage
+```
 
+### Interface web (`web_chat/`)
+- **`index.html`** — structure de la page (sidebar discussions, zone de chat, modale Paramètres).
+- **`app.js`** — toute la logique : appel API, **réponses en streaming** (affichage progressif), gestion des discussions, paramètres.
+- **`style.css`** — thème clair/sombre, styles.
 
-**TechCorp compte sur vous pour finaliser ce projet. Explorez les fichiers laissés par l'équipe précédente, ils peuvent contenir des informations utiles !**
+Fonctionnalités :
+- 3 backends supportés (Ollama / Triton / serveur maison).
+- **Streaming** des réponses Ollama (NDJSON lu chunk par chunk) — la réponse s'affiche au fur et à mesure et est **persistée en cours de route** (un rechargement pendant la génération conserve le texte déjà reçu).
+- Historique des discussions en **`localStorage`** (clé `techcorp_conversations`) : création, **renommage** (bouton ✏️ ou double-clic), suppression. Les discussions vides ne polluent plus la liste.
+- Thème clair/sombre persistant.
+
+### Modèle financier (`ollama_server/Modelfile`)
+Construit à partir de `phi3.5` avec un *system prompt* d'assistant financier et des paramètres d'inférence (`temperature 0.2`, `top_p 0.9`, `num_predict 1024`, `num_ctx 4096`).
 
 ---
+
+## 4. Structure du dépôt
+
+```
+hackathon_ynov/
+├── web_chat/                 # Interface de chat (HTML/CSS/JS) — livrable DEV WEB
+├── ollama_server/Modelfile   # Définition du modèle techcorp-finance pour Ollama
+├── tritton_server/           # Dockerfile Triton (alternative d'inférence)
+├── model_repository/         # Modèle Phi-3.5 pour Triton (backend Python, config.pbtxt)
+├── models/phi3_financial/    # Adaptateur LoRA + tokenizer du modèle financier
+├── scripts/                  # Entraînement, nettoyage de données, chat CLI
+│   ├── train_finance_model.py
+│   ├── data_cleaner.py
+│   ├── simple_chat.py
+│   └── requirements.txt
+├── datasets/                 # Datasets hérités (finance + test 16k)
+├── logs/                     # Logs hérités (preuves d'audit : training.log, team_logs_archive.md)
+├── docker-compose.yml        # Déploiement Ollama + Web UI
+└── rendu/                    # 📦 Livrables par filière (voir §5)
+```
+
+---
+
+## 5. Livrables — dossier `rendu/`
+
+Les rendus sont organisés par filière.
+
+### `rendu/IA/` — Validation & modèle expérimental
+| Fichier | Description |
+|---------|-------------|
+| `rapport_validation_phi_financial.md` | Rapport de validation du modèle financier : **12/12** réponses métier cohérentes, mais **signaux de compromission détectés → NON déployable**. |
+| `resultats_validation.json` | Résultats bruts du harness de validation. |
+| `medical_lora_adapter.zip` | Adaptateur **LoRA** du modèle médical expérimental (fine-tuning). |
+| `Courbe de loss.png` | Courbe de loss de l'entraînement. |
+| `Adapter LoRA.png`, `Reponse de l'ia.png`, `test.png` | Captures d'écran (preuves de fine-tuning et de réponses). |
+
+### `rendu/data/` — Qualité & préparation des données
+| Fichier | Description |
+|---------|-------------|
+| `rapport_qualite_donnees.md` | Analyse des datasets hérités + préparation du dataset médical (16000 → **483** entrées nettoyées). |
+| `medical_dataset_clean.json` | Dataset médical nettoyé, prêt pour le fine-tuning LoRA. |
+
+### `rendu/cyber/` — Audit de sécurité
+| Fichier | Description |
+|---------|-------------|
+| `rapport_audit.md` | Rapport d'audit complet : compromission multi-couches (dataset empoisonné **497/2997 entrées**, canal d'exfiltration dans `app.js`, config serveur dangereuse), tableau de vulnérabilités et plan de remédiation. |
+| `scan_dataset.py` | Scan du dataset à la recherche du trigger backdoor et de credentials. |
+| `audit_code.py` | Audit statique du code source. |
+| `clean_dataset.py` | Nettoyage du dataset financier (suppression des 497 entrées avec trigger). |
+| `finance_dataset_clean.json` | Dataset financier assaini (**2500** entrées saines). |
+| `quick_test.py`, `test_robustesse.py` | Tests de robustesse du LLM (trigger, injection, jailbreak, fuite de prompt). |
+
+---
+
+## 6. Scripts utiles
+
+```bash
+# Dépendances Python (entraînement / scripts)
+pip install -r scripts/requirements.txt
+
+# Audit sécurité du dataset
+python rendu/cyber/scan_dataset.py
+python rendu/cyber/clean_dataset.py
+```
+
+---
+
+## 7. Avertissement de sécurité
+
+Ce dépôt contient, **à des fins pédagogiques et d'audit**, des artefacts volontairement compromis (dataset empoisonné, credentials factices, canal d'exfiltration documenté). Conformément aux conclusions de l'audit, **`techcorp-finance:latest` ne doit pas être déployé en production** sans ré-entraînement sur un dataset assaini et correction des vulnérabilités listées dans `rendu/cyber/rapport_audit.md`.
+
+---
+
+*Hackathon Ynov M1 — Équipes IA / DATA / CYBER / DEV WEB.*
