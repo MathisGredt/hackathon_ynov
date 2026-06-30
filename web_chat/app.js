@@ -179,6 +179,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function selectConversation(id) {
+        if (currentConversationId === id && messagesContainer.querySelectorAll('.message').length > 0) {
+            return; // Already selected, avoid clearing and reloading
+        }
         currentConversationId = id;
         clearChatUI();
         
@@ -190,7 +193,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        renderHistory();
+        // Update active class in DOM instead of re-rendering everything
+        const items = historyList.querySelectorAll('.history-item');
+        items.forEach(item => {
+            if (item.getAttribute('data-id') === id) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
     }
 
     function clearChatUI() {
@@ -208,11 +219,116 @@ document.addEventListener('DOMContentLoaded', () => {
             const conv = conversations[id];
             const item = document.createElement('div');
             item.className = `history-item ${id === currentConversationId ? 'active' : ''}`;
-            item.innerHTML = `<i data-lucide="message-square"></i> <span>${escapeHtml(conv.title)}</span>`;
-            item.addEventListener('click', () => selectConversation(id));
+            item.setAttribute('data-id', id);
+            
+            // Left part (Clickable to select conversation, double-clickable to rename)
+            const leftDiv = document.createElement('div');
+            leftDiv.className = 'history-item-left';
+            leftDiv.innerHTML = `<i data-lucide="message-square"></i> <span class="history-title">${escapeHtml(conv.title)}</span>`;
+            
+            leftDiv.addEventListener('click', (e) => {
+                // If they click on the input inside leftDiv, do not trigger selectConversation
+                if (e.target.classList.contains('rename-input')) {
+                    return;
+                }
+                selectConversation(id);
+            });
+            
+            leftDiv.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startInlineRename(id, leftDiv);
+            });
+            item.appendChild(leftDiv);
+            
+            // Action buttons container (shown on hover)
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'history-item-actions';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'action-btn delete-btn';
+            deleteBtn.setAttribute('title', 'Supprimer');
+            deleteBtn.innerHTML = `<i data-lucide="trash-2"></i>`;
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('Voulez-vous vraiment supprimer cette discussion ?')) {
+                    deleteConversation(id);
+                }
+            });
+            
+            actionsDiv.appendChild(deleteBtn);
+            item.appendChild(actionsDiv);
+            
             historyList.appendChild(item);
         });
         lucide.createIcons();
+    }
+
+    function deleteConversation(id) {
+        delete conversations[id];
+        localStorage.setItem('techcorp_conversations', JSON.stringify(conversations));
+        
+        if (currentConversationId === id) {
+            const keys = Object.keys(conversations);
+            if (keys.length > 0) {
+                const sortedIds = keys.sort((a, b) => b.split('_')[1] - a.split('_')[1]);
+                selectConversation(sortedIds[0]);
+            } else {
+                startNewConversation();
+            }
+        } else {
+            renderHistory();
+        }
+    }
+
+    function startInlineRename(id, leftDiv) {
+        const titleSpan = leftDiv.querySelector('.history-title');
+        if (!titleSpan) return;
+        
+        // Prevent duplicate inputs
+        if (leftDiv.querySelector('.rename-input')) return;
+        
+        const currentTitle = conversations[id].title;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'rename-input';
+        input.value = currentTitle;
+        
+        leftDiv.replaceChild(input, titleSpan);
+        input.focus();
+        input.select();
+        
+        let finished = false;
+        const finishRename = (save) => {
+            if (finished) return;
+            finished = true;
+            
+            let newTitle = currentTitle;
+            if (save) {
+                const val = input.value.trim();
+                if (val) {
+                    newTitle = val;
+                }
+            }
+            
+            conversations[id].title = newTitle;
+            localStorage.setItem('techcorp_conversations', JSON.stringify(conversations));
+            renderHistory();
+        };
+        
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                finishRename(true);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                finishRename(false);
+            }
+        });
+        
+        input.addEventListener('blur', () => {
+            finishRename(true);
+        });
     }
 
     function escapeHtml(text) {

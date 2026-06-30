@@ -186,6 +186,7 @@ body.light-mode {
 .history-item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
     padding: 10px 12px;
     border-radius: var(--border-radius-sm);
@@ -193,11 +194,9 @@ body.light-mode {
     font-size: 13px;
     cursor: pointer;
     transition: all var(--transition-fast);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     position: relative;
     border: 1px solid transparent;
+    overflow: hidden;
 }
 
 .history-item:hover, .history-item.active {
@@ -206,9 +205,83 @@ body.light-mode {
     border-color: var(--border-color);
 }
 
+.history-item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.history-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.rename-input {
+    background: var(--bg-secondary-dark);
+    border: 1px solid hsl(var(--accent-blue));
+    border-radius: 4px;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 2px 4px;
+    width: 100%;
+    outline: none;
+}
+
+body.light-mode .rename-input {
+    background: var(--bg-secondary-light);
+    color: var(--text-main);
+}
+
+.history-item-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.history-item:hover .history-item-actions,
+.history-item.active .history-item-actions {
+    opacity: 1;
+}
+
+.action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-mute);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    border-radius: 4px;
+    transition: all var(--transition-fast);
+}
+
+.action-btn:hover {
+    color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+body.light-mode .action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
 .history-item i {
     font-size: 14px;
     opacity: 0.7;
+}
+
+.action-btn i,
+.action-btn svg {
+    width: 15px;
+    height: 15px;
+    font-size: 11px;
+    opacity: 0.6;
 }
 
 .sidebar-footer {
