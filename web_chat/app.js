@@ -437,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let responseContent = "";
         let responseMetadata = null;
+        let storedBotMsg = null; // reference to the bot message once it's in the conversation
 
         try {
             if (settings.apiType === 'ollama') {
@@ -472,6 +473,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 typingDiv.classList.remove('typing');
                 streamBubble.innerHTML = '';
 
+                // Store the bot message in the conversation right away and persist it
+                // progressively, so reloading mid-stream keeps the partial answer.
+                storedBotMsg = { role: 'bot', content: '', metadata: responseMetadata };
+                conversations[currentConversationId].messages.push(storedBotMsg);
+                let lastSave = 0;
+
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
@@ -485,6 +492,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             responseContent += json.message.content;
                             streamBubble.innerHTML = formatMessageContent(responseContent);
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                            // Persist progress (throttled) so a reload keeps what's been received
+                            storedBotMsg.content = responseContent;
+                            const now = Date.now();
+                            if (now - lastSave > 500) {
+                                localStorage.setItem('techcorp_conversations', JSON.stringify(conversations));
+                                lastSave = now;
+                            }
                         }
                     } catch (e) {
                         // Ignore partial / non-JSON lines
@@ -573,11 +588,16 @@ document.addEventListener('DOMContentLoaded', () => {
             statusText.textContent = "Prêt";
         }
 
-        // 3. Add bot response to state and UI
-        const botMsg = { role: 'bot', content: responseContent, metadata: responseMetadata };
-        conversations[currentConversationId].messages.push(botMsg);
+        // 3. Finalize bot response in state and UI
+        if (storedBotMsg) {
+            // Already added during streaming — just finalize its content/metadata
+            storedBotMsg.content = responseContent;
+            storedBotMsg.metadata = responseMetadata;
+        } else {
+            conversations[currentConversationId].messages.push({ role: 'bot', content: responseContent, metadata: responseMetadata });
+        }
         appendMessageToUI('bot', responseContent, responseMetadata);
-        
+
         localStorage.setItem('techcorp_conversations', JSON.stringify(conversations));
     }
 
