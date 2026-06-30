@@ -9,13 +9,6 @@ services:
     volumes:
       - ollama_data:/root/.ollama
       - /volume2/docker/hackathon_ynov/ollama_server:/config
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     restart: always
 
   web-ui:
