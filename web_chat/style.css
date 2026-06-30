@@ -284,6 +284,14 @@ body.light-mode .action-btn:hover {
     opacity: 0.6;
 }
 
+.rename-btn:hover {
+    color: hsl(var(--accent-blue));
+}
+
+.delete-btn:hover {
+    color: #ef4444;
+}
+
 .sidebar-footer {
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
