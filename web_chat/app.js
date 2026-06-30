@@ -29,8 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let conversations = {};
     let settings = {
         apiType: 'ollama',
-        apiUrl: 'http://localhost:11434',
-        modelName: 'phi3.5'
+        apiUrl: 'https://ollama.matteovocanson.fr/',
+        modelName: 'techcorp-finance:latest'
     };
 
     // Load settings and conversations from localStorage
@@ -38,6 +38,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedSettings = localStorage.getItem('techcorp_chat_settings');
         if (savedSettings) {
             settings = JSON.parse(savedSettings);
+            
+            // Migrate old defaults to new defaults automatically
+            if (settings.apiUrl === 'http://localhost:11434' || settings.apiUrl === 'http://localhost:11434/') {
+                settings.apiUrl = 'https://ollama.matteovocanson.fr/';
+            }
+            if (settings.modelName === 'phi3.5') {
+                settings.modelName = 'techcorp-finance:latest';
+            }
+            
             apiTypeSelect.value = settings.apiType;
             apiUrlInput.value = settings.apiUrl;
             modelNameInput.value = settings.modelName;
@@ -79,11 +88,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateModalUI() {
         if (apiTypeSelect.value === 'triton') {
-            apiUrlInput.value = apiUrlInput.value === 'http://localhost:11434' ? 'http://localhost:8000' : apiUrlInput.value;
-            modelNameInput.value = modelNameInput.value === 'phi3.5' ? 'phi35_financial' : modelNameInput.value;
+            apiUrlInput.value = apiUrlInput.value === 'https://ollama.matteovocanson.fr/' || apiUrlInput.value === 'http://localhost:11434' ? 'http://localhost:8000' : apiUrlInput.value;
+            modelNameInput.value = modelNameInput.value === 'techcorp-finance:latest' || modelNameInput.value === 'phi3.5' ? 'phi35_financial' : modelNameInput.value;
         } else if (apiTypeSelect.value === 'ollama') {
-            apiUrlInput.value = apiUrlInput.value === 'http://localhost:8000' ? 'http://localhost:11434' : apiUrlInput.value;
-            modelNameInput.value = modelNameInput.value === 'phi35_financial' ? 'phi3.5' : modelNameInput.value;
+            apiUrlInput.value = apiUrlInput.value === 'http://localhost:8000' ? 'https://ollama.matteovocanson.fr/' : apiUrlInput.value;
+            modelNameInput.value = modelNameInput.value === 'phi35_financial' ? 'techcorp-finance:latest' : modelNameInput.value;
         }
     }
 
