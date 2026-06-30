@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechCorp Financial AI - Assistant de Trading & Finance</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons (CDN) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="dark-mode">
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🤖</div>
+                    <div class="logo-text">
+                        <h2>TechCorp</h2>
+                        <span>Financial AI</span>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="new-chat-btn" id="new-chat-btn">
+                <i data-lucide="plus"></i> Nouvelle discussion
+            </button>
+
+            <div class="chat-history">
+                <h3>Discussions récentes</h3>
+                <div class="history-list" id="history-list">
+                    <!-- Dynamic history items go here -->
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="settings-toggle-btn" id="settings-toggle-btn">
+                    <i data-lucide="settings"></i> Paramètres API
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-area">
+            <header class="chat-header">
+                <div class="active-chat-info">
+                    <h3 id="active-model-title">Phi-3.5 Financial</h3>
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span id="status-text">Prêt</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="theme-toggle">
+                        <i data-lucide="sun" class="sun-icon"></i>
+                        <i data-lucide="moon" class="moon-icon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Messages Container -->
+            <div class="messages-container" id="messages-container">
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-icon">💎</div>
+                    <h1>Bienvenue sur TechCorp Financial AI</h1>
+                    <p>Votre assistant intelligent spécialisé dans l'analyse financière, le trading et la conformité.</p>
+                    
+                    <div class="suggestions-grid">
+                        <div class="suggestion-card" data-prompt="Quelles sont les meilleures stratégies pour commencer à investir dans la fintech ?">
+                            <h4>🚀 Stratégie d'investissement</h4>
+                            <p>"Quelles sont les meilleures stratégies pour commencer à investir dans la fintech ?"</p>
+                        </div>
+                        <div class="suggestion-card" data-prompt="Explique-moi le concept des intérêts composés avec un exemple simple.">
+                            <h4>📈 Intérêts composés</h4>
+                            <p>"Explique-moi le concept des intérêts composés avec un exemple simple."</p>
+                        </div>
+                        <div class="suggestion-card" data-prompt="Quels sont les principaux risques associés aux crypto-monnaies ?">
+                            <h4>🛡️ Gestion des risques</h4>
+                            <p>"Quels sont les principaux risques associés aux crypto-monnaies ?"</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Form -->
+            <footer class="chat-input-area">
+                <form id="chat-form" class="chat-form">
+                    <textarea 
+                        id="chat-input" 
+                        placeholder="Posez vos questions financières ici... (Maj+Entrée pour sauter une ligne)"
+                        rows="1"
+                        required
+                    ></textarea>
+                    <button type="submit" class="send-btn" id="send-btn">
+                        <i data-lucide="send"></i>
+                    </button>
+                </form>
+                <div class="input-info">
+                    TechCorp Financial AI peut générer des réponses inexactes. Veuillez valider les informations critiques.
+                </div>
+            </footer>
+        </main>
+
+        <!-- Settings Modal -->
+        <div class="modal-overlay" id="settings-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Paramètres de Connexion API</h3>
+                    <button class="close-modal-btn" id="close-modal-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="api-type">Serveur d'Inférence</label>
+                        <select id="api-type">
+                            <option value="ollama">Ollama (Recommandé)</option>
+                            <option value="triton">Triton Inference Server</option>
+                            <option value="custom">Serveur Maison (API REST)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="api-url">URL de l'API Backend</label>
+                        <input type="url" id="api-url" value="http://localhost:11434" required>
+                    </div>
+                    <div class="form-group" id="model-name-group">
+                        <label for="model-name">Nom du Modèle</label>
+                        <input type="text" id="model-name" value="phi3.5">
+                    </div>
+                    <div class="settings-test-connection">
+                        <button type="button" class="secondary-btn" id="test-connection-btn">Tester la connexion</button>
+                        <span id="test-connection-result"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="primary-btn" id="save-settings-btn">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
