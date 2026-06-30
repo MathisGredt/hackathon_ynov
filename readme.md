@@ -2,9 +2,9 @@
 
 Interface de chat web pour dialoguer en temps réel avec le modèle **Phi-3.5-Financial**, servi par **Ollama**, accompagnée des livrables des filières **IA**, **DATA** et **CYBER**.
 
-> **Contexte (scénario du hackathon).** On reprend le projet d'une équipe précédente soupçonnée d'avoir compromis le code et les données. La mission est double : (1) rendre le modèle financier accessible via une interface chat professionnelle, (2) auditer l'intégrité du projet.
->
-> ⚠️ **Résultat clé de l'audit : le projet hérité est volontairement compromis** (backdoor dans le dataset d'entraînement + canal d'exfiltration `X-Compliance-Token` dans l'interface). Le modèle `techcorp-finance:latest` est jugé **NON déployable en l'état**. Voir [`rendu/cyber/rapport_audit.md`](rendu/cyber/rapport_audit.md).
+**Contexte (scénario du hackathon).** On reprend le projet d'une équipe précédente soupçonnée d'avoir compromis le code et les données. La mission est double : (1) rendre le modèle financier accessible via une interface chat professionnelle, (2) auditer l'intégrité du projet.
+
+**Résultat clé de l'audit : le projet hérité est volontairement compromis** (backdoor dans le dataset d'entraînement + canal d'exfiltration `X-Compliance-Token` dans l'interface). Le modèle `techcorp-finance:latest` est jugé **NON déployable en l'état**. Voir [`rendu/cyber/rapport_audit.md`](rendu/cyber/rapport_audit.md).
 
 ---
 
@@ -12,13 +12,11 @@ Interface de chat web pour dialoguer en temps réel avec le modèle **Phi-3.5-Fi
 
 | Composant | Emplacement | Détails |
 |-----------|-------------|---------|
-| **Serveur d'inférence (Ollama)** | `https://ollama.matteovocanson.fr` | Public, derrière un reverse proxy. Modèles exposés : `techcorp-finance:latest` et `phi3.5:latest`. |
-| **Interface web** | Conteneur Docker `techcorp-web-ui` | Servie par `http-server` sur le **port hôte 11400** (→ 8080 dans le conteneur). |
-| **Hébergement** | NAS Synology | Déploiement via `docker-compose.yml` (chemins `/volume2/docker/hackathon_ynov/...`). |
+| **Serveur d'inférence (Ollama)** | `https://ollama.matteovocanson.fr` | Public, derrière un reverse proxy. Modèles exposés : `techcorp-finance:latest` et `phi3.5:latest`. Hébergé sur NAS. |
+| **Interface web** | `https://techcorp.matteovocanson.fr` | Déployée sous forme de conteneur Docker (Node.js/http-server) géré via une stack Portainer sur le NAS, accessible publiquement derrière un reverse proxy gérant le SSL. |
 
-L'interface pointe **par défaut** sur le serveur public (`https://ollama.matteovocanson.fr`, modèle `techcorp-finance:latest`) — aucune config nécessaire pour tester.
 
-> **Note réseau.** Le reverse proxy devant Ollama peut couper les requêtes longues. L'interface utilise le **streaming** pour garder la connexion active. Si un timeout *total* persiste, augmenter `proxy_read_timeout` côté proxy.
+**Note réseau.** Le reverse proxy devant Ollama peut couper les requêtes longues. L'interface utilise le **streaming** pour garder la connexion active. Si un timeout persiste, augmenter `proxy_read_timeout` côté proxy.
 
 ---
 
@@ -55,10 +53,6 @@ docker exec -it techcorp-ollama ollama pull phi3.5
 docker exec -it techcorp-ollama ollama create techcorp-finance -f /config/Modelfile
 ```
 
-### Option C — Serveur d'inférence Triton (alternative avancée)
-
-Configuration fournie dans `tritton_server/` et `model_repository/` (backend Python, modèle `microsoft/Phi-3.5-mini-instruct`). Construire l'image puis lancer Triton en montant `model_repository/` ; l'API REST est exposée sur le port `8000`.
-
 ### Configurer la cible depuis l'interface
 
 Dans l'interface, bouton **Paramètres API** :
@@ -66,7 +60,6 @@ Dans l'interface, bouton **Paramètres API** :
 | Type d'API | URL par défaut | Modèle |
 |------------|----------------|--------|
 | **Ollama** | `https://ollama.matteovocanson.fr` | `techcorp-finance:latest` |
-| **Triton** | `http://localhost:8000` | `phi35_financial` |
 | **Serveur maison** | URL custom | endpoint POST `{prompt, model}` |
 
 ---
@@ -75,7 +68,7 @@ Dans l'interface, bouton **Paramètres API** :
 
 ```
 Navigateur (web_chat) ──HTTP──▶ Serveur d'inférence ──▶ Modèle Phi-3.5-Financial
-   │  streaming NDJSON               (Ollama / Triton / maison)
+   │  streaming NDJSON               (Ollama / maison)
    └─ historique en localStorage
 ```
 
@@ -85,7 +78,7 @@ Navigateur (web_chat) ──HTTP──▶ Serveur d'inférence ──▶ Modèle
 - **`style.css`** — thème clair/sombre, styles.
 
 Fonctionnalités :
-- 3 backends supportés (Ollama / Triton / serveur maison).
+- 2 backends supportés (Ollama / serveur maison).
 - **Streaming** des réponses Ollama (NDJSON lu chunk par chunk) — la réponse s'affiche au fur et à mesure et est **persistée en cours de route** (un rechargement pendant la génération conserve le texte déjà reçu).
 - Historique des discussions en **`localStorage`** (clé `techcorp_conversations`) : création, **renommage** (bouton ✏️ ou double-clic), suppression. Les discussions vides ne polluent plus la liste.
 - Thème clair/sombre persistant.
@@ -101,8 +94,6 @@ Construit à partir de `phi3.5` avec un *system prompt* d'assistant financier et
 hackathon_ynov/
 ├── web_chat/                 # Interface de chat (HTML/CSS/JS) — livrable DEV WEB
 ├── ollama_server/Modelfile   # Définition du modèle techcorp-finance pour Ollama
-├── tritton_server/           # Dockerfile Triton (alternative d'inférence)
-├── model_repository/         # Modèle Phi-3.5 pour Triton (backend Python, config.pbtxt)
 ├── models/phi3_financial/    # Adaptateur LoRA + tokenizer du modèle financier
 ├── scripts/                  # Entraînement, nettoyage de données, chat CLI
 │   ├── train_finance_model.py
@@ -120,6 +111,11 @@ hackathon_ynov/
 ## 5. Livrables — dossier `rendu/`
 
 Les rendus sont organisés par filière.
+
+### `rendu/infra/` — Architecture & Déploiement
+| Fichier | Description |
+|---------|-------------|
+| `documentation_deploiement.md` | Documentation de déploiement et justifications techniques (Ollama, Docker Compose, Portainer). |
 
 ### `rendu/IA/` — Validation & modèle expérimental
 | Fichier | Description |
