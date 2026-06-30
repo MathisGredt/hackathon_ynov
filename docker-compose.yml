@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: techcorp-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - /volume2/docker/hackathon_ynov/ollama_server:/config
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: always
+
+  web-ui:
+    image: node:20-alpine
+    container_name: techcorp-web-ui
+    working_dir: /app
+    command: sh -c "npx --yes http-server web_chat -a 0.0.0.0 -p 8080"
+    ports:
+      - "11400:8080"
+    volumes:
+      - /volume2/docker/hackathon_ynov/web_chat:/app/web_chat:ro
+    restart: always
+
+volumes:
+  ollama_data:
